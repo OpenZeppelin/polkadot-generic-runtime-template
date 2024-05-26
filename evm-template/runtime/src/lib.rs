@@ -7,6 +7,7 @@
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod constants;
+pub mod defi;
 pub mod governance;
 mod weights;
 pub mod xcm_config;
@@ -850,6 +851,10 @@ construct_runtime!(
         PolkadotXcm: pallet_xcm = 31,
         CumulusXcm: cumulus_pallet_xcm = 32,
         MessageQueue: pallet_message_queue = 33,
+
+        // DeFi
+        Currencies: orml_currencies = 40,
+        //MultiTransactionPayment: pallet_transaction_multi_payment = 36,
     }
 );
 

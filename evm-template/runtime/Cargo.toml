@@ -84,6 +84,16 @@ parachains-common = { workspace = true }
 
 # Frontier
 fp-account = { workspace = true }
+evm = { workspace = true, features = ["with-codec"] }
+
+# Open Runtime Module Library
+orml-currencies = { workspace = true }
+
+# Custom
+pallet-multicurrency = { workspace = true }
+
+# HydraDX
+pallet-transaction-multi-payment = { workspace = true }
 
 [dev-dependencies]
 sp-io = { workspace = true }
@@ -118,6 +128,7 @@ std = [
 	"pallet-collator-selection/std",
 	"pallet-conviction-voting/std",
 	"pallet-message-queue/std",
+	"pallet-multicurrency/std",
 	"pallet-multisig/std",
 	"pallet-preimage/std",
 	"pallet-proxy/std",
@@ -128,6 +139,7 @@ std = [
 	"pallet-timestamp/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
+    "pallet-transaction-multi-payment/std",
 	"pallet-treasury/std",
 	"pallet-utility/std",
 	"pallet-whitelist/std",
@@ -154,6 +166,7 @@ std = [
 	"xcm-builder/std",
 	"xcm-executor/std",
 	"xcm/std",
+    'orml-currencies/std',
 ]
 async-backing = []
 
@@ -207,6 +220,7 @@ try-runtime = [
 	"pallet-collator-selection/try-runtime",
 	"pallet-conviction-voting/try-runtime",
 	"pallet-message-queue/try-runtime",
+	"pallet-multicurrency/try-runtime",
 	"pallet-multisig/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-proxy/try-runtime",
@@ -217,6 +231,7 @@ try-runtime = [
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+    "pallet-transaction-multi-payment/try-runtime",
 	"pallet-treasury/try-runtime",
 	"pallet-utility/try-runtime",
 	"pallet-whitelist/try-runtime",
