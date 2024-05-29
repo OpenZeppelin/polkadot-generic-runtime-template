@@ -1,5 +1,4 @@
-//! Service and ServiceFactory implementation. Specialized wrapper over
-//! substrate service.
+//! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
 // std
 use std::{sync::Arc, time::Duration};
@@ -11,7 +10,7 @@ use cumulus_client_consensus_common::ParachainBlockImport as TParachainBlockImpo
 use cumulus_client_consensus_proposer::Proposer;
 use cumulus_client_service::{
     build_network, build_relay_chain_interface, prepare_node_config, start_relay_chain_tasks,
-    BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile, StartRelayChainTasksParams,
+    BuildNetworkParams, CollatorSybilResistance, DARecoveryProfile,  ParachainHostFunctions, StartRelayChainTasksParams,
 };
 #[cfg(feature = "async-backing")]
 use cumulus_primitives_core::relay_chain::ValidationCode;
@@ -26,9 +25,7 @@ use parachain_template_runtime::{
 };
 use sc_client_api::Backend;
 use sc_consensus::ImportQueue;
-use sc_executor::{
-    HeapAllocStrategy, NativeElseWasmExecutor, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY,
-};
+use sc_executor::{HeapAllocStrategy, WasmExecutor, DEFAULT_HEAP_ALLOC_STRATEGY};
 use sc_network::NetworkBlock;
 use sc_network_sync::SyncingService;
 use sc_service::{Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
@@ -37,22 +34,7 @@ use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sp_keystore::KeystorePtr;
 use substrate_prometheus_endpoint::Registry;
 
-/// Native executor type.
-pub struct ParachainNativeExecutor;
-
-impl sc_executor::NativeExecutionDispatch for ParachainNativeExecutor {
-    type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
-
-    fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-        parachain_template_runtime::api::dispatch(method, data)
-    }
-
-    fn native_version() -> sc_executor::NativeVersion {
-        parachain_template_runtime::native_version()
-    }
-}
-
-type ParachainExecutor = NativeElseWasmExecutor<ParachainNativeExecutor>;
+type ParachainExecutor = WasmExecutor<ParachainHostFunctions>;
 
 type ParachainClient = TFullClient<Block, RuntimeApi, ParachainExecutor>;
 
@@ -60,23 +42,24 @@ type ParachainBackend = TFullBackend<Block>;
 
 type ParachainBlockImport = TParachainBlockImport<Block, Arc<ParachainClient>, ParachainBackend>;
 
+/// Assembly of PartialComponents (enough to run chain ops subcommands)
+pub type Service = PartialComponents<
+    ParachainClient,
+    ParachainBackend,
+    (),
+    sc_consensus::DefaultImportQueue<Block>,
+    sc_transaction_pool::FullPool<Block, ParachainClient>,
+    (ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
+>;
+
+
 /// Starts a `ServiceBuilder` for a full service.
 ///
 /// Use this macro if you don't actually need the full service, but just the
 /// builder in order to be able to perform chain operations.
 pub fn new_partial(
     config: &Configuration,
-) -> Result<
-    PartialComponents<
-        ParachainClient,
-        ParachainBackend,
-        (),
-        sc_consensus::DefaultImportQueue<Block>,
-        sc_transaction_pool::FullPool<Block, ParachainClient>,
-        (ParachainBlockImport, Option<Telemetry>, Option<TelemetryWorkerHandle>),
-    >,
-    sc_service::Error,
-> {
+) -> Result<Service, sc_service::Error> {
     let telemetry = config
         .telemetry_endpoints
         .clone()
@@ -92,7 +75,7 @@ pub fn new_partial(
         .default_heap_pages
         .map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
 
-    let wasm = WasmExecutor::builder()
+    let executor = ParachainExecutor::builder()
         .with_execution_method(config.wasm_method)
         .with_onchain_heap_alloc_strategy(heap_pages)
         .with_offchain_heap_alloc_strategy(heap_pages)
@@ -100,13 +83,12 @@ pub fn new_partial(
         .with_runtime_cache_size(config.runtime_cache_size)
         .build();
 
-    let executor = ParachainExecutor::new_with_wasm_executor(wasm);
-
     let (client, backend, keystore_container, task_manager) =
-        sc_service::new_full_parts::<Block, RuntimeApi, _>(
+        sc_service::new_full_parts_record_import::<Block, RuntimeApi, _>(
             config,
             telemetry.as_ref().map(|(_, telemetry)| telemetry.handle()),
             executor,
+            true
         )?;
     let client = Arc::new(client);
 
